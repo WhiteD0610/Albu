@@ -78,6 +78,43 @@ header .ttl{font-size:15px;font-weight:600;letter-spacing:.04em;flex:1;white-spa
 .pg.blank,.pg.end{background:linear-gradient(#f7f2e8,#ece5d6)}
 .pg.end{align-items:center;justify-content:center;color:var(--sub);font-size:15px}
 
+/* ===== コラージュ（貼り付けページ） ===== */
+.pg.grid{padding:14px 12px 22px}
+.ttl2{flex:0 0 auto;text-align:center;font-size:clamp(13px,2.4vmin,20px);letter-spacing:.08em;
+  padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid #ddd0b4}
+.ttl2 span{font-size:.62em;color:var(--sub);margin-left:8px;font-family:-apple-system,sans-serif}
+.collage{flex:1;min-height:0;display:grid;gap:clamp(3px,.9vmin,9px);align-content:start;padding:4px 2px}
+.snap{position:relative;background:#fff;padding:3px;aspect-ratio:1;display:flex;flex-direction:column;
+  box-shadow:0 2px 7px rgba(0,0,0,.28);border:1px solid #f0ece2;cursor:pointer;
+  transition:transform .15s, box-shadow .15s}
+.snap:hover{transform:rotate(0deg) scale(1.06)!important;box-shadow:0 6px 16px rgba(0,0,0,.4);z-index:5}
+.snap .im{flex:1;min-height:0;overflow:hidden;background:#eee9df;display:flex;align-items:center;justify-content:center}
+.snap .im img{width:100%;height:100%;object-fit:cover;display:block}
+.snap .im .no{font-size:clamp(9px,2vmin,18px);color:#c6bba6}
+.snap .cp{flex:0 0 auto;font-size:clamp(5px,1.25vmin,10px);line-height:1.25;text-align:center;
+  padding:2px 1px 0;color:#5b5247;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-family:"Hiragino Maru Gothic ProN","Yu Gothic",-apple-system,sans-serif}
+.snap::before{content:'';position:absolute;top:-5px;left:50%;width:36%;height:10px;
+  background:rgba(250,232,175,.72);box-shadow:0 1px 2px rgba(0,0,0,.12);
+  transform:translateX(-50%) rotate(-3deg)}
+.snap.tapeR::before{transform:translateX(-50%) rotate(4deg);background:rgba(215,230,240,.7)}
+.snap.noTape::before{display:none}
+
+/* 写真の拡大表示 */
+#pv{position:fixed;inset:0;z-index:900;background:rgba(20,14,8,.88);display:none;
+  align-items:center;justify-content:center;flex-direction:column;padding:20px;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#f3e9d8}
+#pv.show{display:flex}
+#pv img{max-width:min(92vw,720px);max-height:66vh;background:#fff;padding:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+#pv .nm{font-size:19px;font-weight:700;margin-top:16px;text-align:center}
+#pv .mt{font-size:13px;color:#cbbda2;margin-top:6px}
+#pv .memo{font-size:13px;color:#e0d5bf;margin-top:10px;max-width:min(90vw,620px);line-height:1.7;
+  max-height:22vh;overflow:auto;white-space:pre-wrap}
+#pv .acts{display:flex;gap:10px;margin-top:18px}
+#pv .acts button{border:0;border-radius:20px;padding:11px 20px;font-size:14px;cursor:pointer;
+  background:rgba(255,255,255,.16);color:#f3e9d8;font-family:inherit}
+#pv .acts .go{background:var(--gold);color:#2b2119;font-weight:700}
+
 /* ===== フッター ===== */
 footer{flex:0 0 auto;padding:6px 12px calc(var(--safe-b) + 12px);display:flex;gap:10px;align-items:center;
   color:#e6d9c0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
@@ -134,12 +171,27 @@ footer{flex:0 0 auto;padding:6px 12px calc(var(--safe-b) + 12px);display:flex;ga
   <div id="tocBody"></div>
 </div>
 <div class="msg" id="msg"></div>
+<div id="pv">
+  <img id="pvImg" alt="">
+  <div class="nm" id="pvName"></div>
+  <div class="mt" id="pvMeta"></div>
+  <div class="memo" id="pvMemo"></div>
+  <div class="acts">
+    <button class="go" id="pvMap">マップで開く</button>
+    <button id="pvClose">閉じる</button>
+  </div>
+</div>
 
 <script>
 // ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxd8Yh-H20xPp2Y_cTdQ4XCOZAbEOvWGZqSTgjCwYOMb1VSLIgcCrh5Kj0koQ1Ac0XcGw/exec';
 // 記録アプリと同じ合言葉
 const SYNC_KEY = '109344';
+// 記録アプリ（index.html）の場所。別リポジトリに置く場合は完全なURLを書く
+// 例: 'https://ユーザー名.github.io/place-memo/'
+const MAIN_APP_URL = 'index.html';
+// 1ページに貼る写真の最大枚数（これを超えると次のページへ）
+const PER_PAGE = 40;
 // ================================================================
 // ※このアプリは読み取り専用です。記録の追加・編集・削除は行いません。
 // ※記録アプリ（index.html）と同じフォルダ／同じドメインに置くと、
@@ -301,8 +353,11 @@ function buildPages(){
   pages.push({t:'cover'});
   gs.forEach(g=>{
     toc.push({title:g.title, count:g.list.length, page:pages.length});
-    pages.push({t:'div', title:g.title, count:g.list.length});
-    g.list.forEach(p=>pages.push({t:'photo', p, group:g.title}));
+    const parts = Math.max(1, Math.ceil(g.list.length / PER_PAGE));
+    for(let i=0;i<parts;i++){
+      pages.push({t:'grid', title:g.title, total:g.list.length,
+                  list:g.list.slice(i*PER_PAGE,(i+1)*PER_PAGE), part:i+1, parts:parts});
+    }
   });
   pages.push({t:'end'});
   if(spread && pages.length%2) pages.push({t:'blank'});
@@ -329,6 +384,15 @@ function urlOf(p){
   if(!b) return null;
   return (urlCache[p.id] = URL.createObjectURL(b));
 }
+// idから決まる擬似乱数（再描画しても傾きが変わらないように）
+function seed(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+function snapStyle(id){
+  const h = seed(id);
+  const rot = ((h%90)/10 - 4.5).toFixed(2);          // -4.5〜+4.5度
+  const dx  = ((h>>4)%7 - 3);                        // 横に数px
+  const dy  = ((h>>8)%7 - 3);
+  return `transform:rotate(${rot}deg) translate(${dx}px,${dy}px)`;
+}
 function html(pg, no){
   if(!pg) return `<div class="pg blank"></div>`;
   if(pg.t==='blank') return `<div class="pg blank"></div>`;
@@ -336,15 +400,22 @@ function html(pg, no){
       <div class="big">いった記録</div><div class="line"></div>
       <div class="sm">${items.length} か所のアルバム</div>
       <div class="sm" style="margin-top:6px">${mode==='month'?'月ごとに綴じる':'都道府県ごとに綴じる'}</div></div>`;
-  if(pg.t==='div') return `<div class="pg div"><div class="t">${esc(pg.title)}</div>
-      <div class="rule"></div><div class="s">${pg.count} か所</div></div>`;
   if(pg.t==='end') return `<div class="pg end">おわり</div>`;
-  const p = pg.p, u = urlOf(p);
-  const meta = [p.date?p.date.replace(/-/g,'/'):'', mode==='month'?(p.pref||''):monthLabel(p.date)].filter(Boolean).join(' ・ ');
-  return `<div class="pg">
-    <div class="frame">${u?`<img src="${u}" alt="" data-id="${p.id}">`:'<div class="none">🖼</div>'}</div>
-    <div class="cap"><div class="nm">${esc(p.name)}</div><div class="mt">${esc(meta)}</div>
-      ${p.memo?`<div class="memo">${esc(p.memo)}</div>`:''}</div>
+  // コラージュページ
+  const n = pg.list.length;
+  const cols = Math.max(2, Math.min(8, Math.round(Math.sqrt(n*0.78)) || 2));
+  const cells = pg.list.map((p,i)=>{
+    const u = urlOf(p), h = seed(p.id);
+    const tape = (h%5===0) ? 'noTape' : ((h%2) ? 'tapeR' : '');
+    const sub = mode==='month' ? (p.pref||'') : (p.date? p.date.slice(0,7).replace('-','/') : '');
+    return `<div class="snap ${tape}" style="${snapStyle(p.id)}" data-id="${p.id}">
+        <div class="im">${u?`<img src="${u}" alt="" loading="lazy">`:'<div class="no">🖼</div>'}</div>
+        <div class="cp">${esc(p.name)}${sub?' '+esc(sub):''}</div>
+      </div>`;
+  }).join('');
+  return `<div class="pg grid">
+    <div class="ttl2">${esc(pg.title)}<span>${pg.total}か所${pg.parts>1?`（${pg.part}/${pg.parts}）`:''}</span></div>
+    <div class="collage" style="grid-template-columns:repeat(${cols},1fr)">${cells}</div>
     <div class="pgno">${no}</div></div>`;
 }
 function show(){
@@ -357,20 +428,9 @@ function show(){
   }
   $('prev').disabled = idx<=0;
   $('next').disabled = idx+step >= pages.length;
-  const cur = pages[idx+ (spread?1:0)] || pages[idx];
-  const g = cur && cur.group ? cur.group : (cur && cur.title ? cur.title : '');
+  const cur = pages[idx+(spread?1:0)] || pages[idx] || {};
+  const g = cur.title || '';
   $('pos').textContent = items.length ? `${Math.min(idx+step,pages.length)} / ${pages.length} ページ${g?'　'+g:''}` : '記録がありません';
-  upgradePhotos();
-}
-// 表示中のページの写真を高画質へ差し替え
-async function upgradePhotos(){
-  const step = spread?2:1;
-  for(let i=idx;i<idx+step;i++){
-    const pg = pages[i];
-    if(!pg || pg.t!=='photo' || pg.p.photo || !pg.p.photoId) continue;
-    const b = await fetchPhoto(pg.p);
-    if(b){ delete urlCache[pg.p.id]; if(i>=idx && i<idx+step) show(); }
-  }
 }
 
 /* ============ ページめくり ============ */
@@ -405,21 +465,46 @@ function turn(dir){
 $('next').onclick = ()=>turn(1);
 $('prev').onclick = ()=>turn(-1);
 document.addEventListener('keydown', e=>{
+  if($('pv').classList.contains('show')){ if(e.key==='Escape') $('pvClose').onclick(); return; }
   if(e.key==='ArrowRight') turn(1);
   if(e.key==='ArrowLeft') turn(-1);
   if(e.key==='Escape') closeToc();
 });
 // ページの左右タップ＆スワイプ
-let sx=null;
-$('stage').addEventListener('pointerdown', e=>{ sx=e.clientX; });
+let sx=null, sTarget=null;
+$('stage').addEventListener('pointerdown', e=>{ sx=e.clientX; sTarget=e.target.closest('.snap'); });
 $('stage').addEventListener('pointerup', e=>{
   if(sx===null) return;
   const dx = e.clientX - sx; sx=null;
-  if(Math.abs(dx)>45){ turn(dx<0?1:-1); return; }
+  if(Math.abs(dx)>45){ sTarget=null; turn(dx<0?1:-1); return; }
+  const snap = e.target.closest('.snap');
+  if(snap && snap===sTarget){ sTarget=null; openPhoto(snap.dataset.id); return; }
+  sTarget=null;
   const r = $('book').getBoundingClientRect();
   if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) return;
   turn(e.clientX < r.left + r.width/2 ? -1 : 1);
 });
+
+/* ============ 写真の拡大 ============ */
+let pvItem = null;
+async function openPhoto(id){
+  const p = items.find(x=>x.id===id); if(!p) return;
+  pvItem = p;
+  const img = $('pvImg');
+  img.src = urlOf(p) || '';
+  $('pvName').textContent = p.name;
+  $('pvMeta').textContent = [p.date?p.date.replace(/-/g,'/'):'', p.pref||''].filter(Boolean).join(' ・ ');
+  $('pvMemo').textContent = p.memo||'';
+  $('pv').classList.add('show');
+  const b = await fetchPhoto(p);              // 高画質版は開いた時だけ取得
+  if(b && pvItem===p){ delete urlCache[p.id]; img.src = urlOf(p); }
+}
+$('pvClose').onclick = ()=>{ $('pv').classList.remove('show'); pvItem=null; };
+$('pv').addEventListener('click', e=>{ if(e.target.id==='pv') $('pvClose').onclick(); });
+$('pvMap').onclick = ()=>{
+  if(!pvItem) return;
+  window.open(pvItem.mapUrl || `https://www.google.com/maps/search/?api=1&query=${pvItem.lat},${pvItem.lng}`,'_blank');
+};
 
 /* ============ 並べ替え・目次 ============ */
 function setMode(m){
@@ -438,7 +523,7 @@ $('byPref').onclick  = ()=>setMode('pref');
 $('btnToc').onclick = ()=>{ $('mask').classList.add('show'); $('toc').classList.add('show'); };
 function closeToc(){ $('mask').classList.remove('show'); $('toc').classList.remove('show'); }
 $('mask').onclick = closeToc;
-$('btnBack').onclick = ()=>{ location.href='index.html'; };
+$('btnBack').onclick = ()=>{ location.href = MAIN_APP_URL; };
 </script>
 </body>
 </html>
