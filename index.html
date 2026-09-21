@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b2d21">
+<title>いった記録 アルバム</title>
+<style>
+:root{
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --paper:#fbf8f2; --paper2:#f2ece0; --ink:#2f2a24; --sub:#8a7f70;
+  --leather:#4a382a; --gold:#c9a24a; --accent:#ff9500;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  background:radial-gradient(circle at 50% 20%,#5c4635,#2b2119 70%);
+  color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Mincho ProN","Yu Mincho",serif;
+  display:flex;flex-direction:column;
+}
+
+/* ===== ヘッダー ===== */
+header{
+  padding:calc(var(--safe-t) + 10px) 12px 10px;display:flex;gap:8px;align-items:center;
+  color:#f3e9d8;flex:0 0 auto;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+}
+header .ttl{font-size:15px;font-weight:600;letter-spacing:.04em;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;background:rgba(0,0,0,.28);border-radius:11px;padding:3px;flex:0 0 auto}
+.seg button{border:0;background:transparent;color:#d8c9b0;font-size:13px;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.seg button.on{background:var(--gold);color:#2b2119;font-weight:700}
+.hbtn{border:0;background:rgba(0,0,0,.28);color:#e8dcc6;border-radius:11px;width:38px;height:38px;
+  font-size:16px;cursor:pointer;flex:0 0 38px;display:flex;align-items:center;justify-content:center}
+
+/* ===== 本 ===== */
+#stage{flex:1;display:flex;align-items:center;justify-content:center;padding:6px 10px;min-height:0;position:relative}
+#book{
+  position:relative;display:flex;
+  background:var(--leather);padding:10px;border-radius:8px;
+  box-shadow:0 30px 60px rgba(0,0,0,.55), 0 0 0 2px rgba(201,162,74,.25) inset;
+  transform-style:preserve-3d;
+}
+.side{position:relative;overflow:hidden;background:var(--paper);border-radius:3px}
+.side.left{border-radius:3px 0 0 3px;box-shadow:inset -14px 0 22px -14px rgba(0,0,0,.45)}
+.side.right{border-radius:0 3px 3px 0;box-shadow:inset 14px 0 22px -14px rgba(0,0,0,.45)}
+#flip{position:absolute;top:10px;transform-style:preserve-3d;transition:transform .72s cubic-bezier(.4,.05,.25,1);
+  z-index:20;pointer-events:none;visibility:hidden}
+#flip .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:var(--paper);overflow:hidden;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#flip .back{transform:rotateY(180deg)}
+
+/* ページの中身 */
+.pg{position:absolute;inset:0;display:flex;flex-direction:column;padding:18px 18px 26px;
+  background:
+    linear-gradient(#fdfbf6,#f4eee1),
+    repeating-linear-gradient(0deg,rgba(0,0,0,.015) 0 2px,transparent 2px 4px);
+}
+.pg .frame{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  background:#fff;padding:8px;box-shadow:0 2px 10px rgba(0,0,0,.18);border:1px solid #e6dfd0}
+.pg .frame img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.pg .frame .none{color:#c3b8a4;font-size:34px}
+.pg .cap{flex:0 0 auto;padding-top:12px;text-align:center}
+.pg .nm{font-size:17px;font-weight:700;line-height:1.35}
+.pg .mt{font-size:12px;color:var(--sub);margin-top:5px;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.pg .memo{font-size:12px;color:#6d6357;margin-top:8px;line-height:1.6;max-height:3.2em;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.pgno{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:#b9ad98}
+
+/* 表紙・中扉 */
+.pg.cover{background:linear-gradient(140deg,#5b4534,#3a2b20);color:#f0e4cd;
+  align-items:center;justify-content:center;text-align:center;border:0}
+.pg.cover .big{font-size:30px;letter-spacing:.14em;margin-bottom:14px}
+.pg.cover .line{width:52%;height:1px;background:var(--gold);margin:12px auto}
+.pg.cover .sm{font-size:13px;color:#d3c4a6;font-family:-apple-system,sans-serif}
+.pg.div{align-items:center;justify-content:center;text-align:center}
+.pg.div .t{font-size:28px;letter-spacing:.1em}
+.pg.div .s{font-size:13px;color:var(--sub);margin-top:10px;font-family:-apple-system,sans-serif}
+.pg.div .rule{width:44%;height:1px;background:#d6c9ae;margin:16px auto}
+.pg.blank,.pg.end{background:linear-gradient(#f7f2e8,#ece5d6)}
+.pg.end{align-items:center;justify-content:center;color:var(--sub);font-size:15px}
+
+/* ===== フッター ===== */
+footer{flex:0 0 auto;padding:6px 12px calc(var(--safe-b) + 12px);display:flex;gap:10px;align-items:center;
+  color:#e6d9c0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.nav{border:0;background:rgba(0,0,0,.3);color:#f0e4cd;border-radius:22px;padding:11px 20px;font-size:15px;cursor:pointer}
+.nav:disabled{opacity:.3}
+#pos{flex:1;text-align:center;font-size:12px;color:#cbbda2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== 目次 ===== */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;display:none}
+.mask.show{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:850;background:var(--paper);
+  border-radius:18px 18px 0 0;max-height:70%;overflow:auto;padding:14px 16px calc(var(--safe-b) + 18px);
+  transform:translateY(103%);transition:transform .25s;font-family:-apple-system,sans-serif}
+.sheet.show{transform:translateY(0)}
+.sheet h3{margin:6px 0 12px;font-size:16px}
+.toc{width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #e3dac8;
+  padding:13px 4px;font-size:15px;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;font-family:inherit}
+.toc span{color:var(--sub);font-size:12px}
+.msg{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;
+  padding:9px 16px;border-radius:18px;font-size:13px;z-index:900;opacity:0;transition:opacity .2s;pointer-events:none;
+  font-family:-apple-system,sans-serif;max-width:88%;text-align:center}
+.msg.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="hbtn" id="btnBack" title="記録アプリへ">←</button>
+  <div class="ttl">いった記録 アルバム</div>
+  <div class="seg">
+    <button id="byMonth" class="on">月ごと</button>
+    <button id="byPref">都道府県</button>
+  </div>
+  <button class="hbtn" id="btnToc" title="目次">☰</button>
+</header>
+
+<div id="stage">
+  <div id="book">
+    <div class="side left" id="sideL"></div>
+    <div class="side right" id="sideR"></div>
+    <div id="flip"><div class="face front" id="flipF"></div><div class="face back" id="flipB"></div></div>
+  </div>
+</div>
+
+<footer>
+  <button class="nav" id="prev">‹ 前</button>
+  <div id="pos">読み込み中…</div>
+  <button class="nav" id="next">次 ›</button>
+</footer>
+
+<div class="mask" id="mask"></div>
+<div class="sheet" id="toc">
+  <h3>目次</h3>
+  <div id="tocBody"></div>
+</div>
+<div class="msg" id="msg"></div>
+
+<script>
+// ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxd8Yh-H20xPp2Y_cTdQ4XCOZAbEOvWGZqSTgjCwYOMb1VSLIgcCrh5Kj0koQ1Ac0XcGw/exec';
+// 記録アプリと同じ合言葉
+const SYNC_KEY = '109344';
+// ================================================================
+// ※このアプリは読み取り専用です。記録の追加・編集・削除は行いません。
+// ※記録アプリ（index.html）と同じフォルダ／同じドメインに置くと、
+//   端末内のデータ（IndexedDB）をそのまま共有できます。
+
+const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県',
+'埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県',
+'静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県',
+'岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県',
+'大分県','宮崎県','鹿児島県','沖縄県'];
+
+/* ============ IndexedDB（記録アプリと共用） ============ */
+let db;
+const openDB = () => new Promise((res,rej)=>{
+  const r = indexedDB.open('placememo',2);
+  r.onupgradeneeded = e=>{ const d=e.target.result;
+    if(!d.objectStoreNames.contains('places')) d.createObjectStore('places',{keyPath:'id'}); };
+  r.onsuccess = e=>res(e.target.result); r.onerror = e=>rej(e.target.error);
+});
+const st = m => db.transaction('places',m).objectStore('places');
+const dbAll = () => new Promise(r=>{ const q=st('readonly').getAll(); q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); });
+const dbPut = o => new Promise(r=>{ const q=st('readwrite').put(o); q.onsuccess=()=>r(); q.onerror=()=>r(); });
+
+/* ============ 状態 ============ */
+let items=[], pages=[], idx=0, mode='month', spread=false, busy=false, urlCache={};
+const $ = id => document.getElementById(id);
+const msg = t => { const e=$('msg'); e.textContent=t; e.classList.add('show');
+  clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove('show'),2400); };
+
+/* ============ 起動 ============ */
+(async function(){
+  try{ db = await openDB(); }catch(e){
+    alert('データを開けませんでした。\nfile:// で開いていると読めません。http://localhost:8802/ か GitHub Pages から開いてください。\n\n'+e);
+    return;
+  }
+  layout();
+  await load();
+  if(GAS_URL) pull();
+  window.addEventListener('resize', ()=>{ layout(); buildPages(); show(); });
+})();
+
+async function load(){
+  const raw = await dbAll();
+  items = raw.filter(p=>!p.deleted).map(p=>({...p}));
+  items.forEach(p=>{ p.pref = p.pref || prefCache(p.lat,p.lng) || ''; });
+  buildPages(); show();
+  if(!items.length) msg('記録がまだありません。記録アプリで場所を登録してください');
+  resolvePrefs();
+}
+
+/* ============ GASから読み取り（追加のみ、書き込みなし） ============ */
+async function api(action,payload){
+  const r = await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({key:SYNC_KEY,action,...payload})});
+  const j = await r.json(); if(!j.ok) throw new Error(j.error||'error'); return j;
+}
+const d2b = async d => d ? await (await fetch(d)).blob() : null;
+async function pull(){
+  try{
+    const res = await api('sync',{since:0, changes:[]});
+    const local = await dbAll(); let n=0;
+    for(const c of (res.changes||[])){
+      const cur = local.find(x=>x.id===c.id);
+      if(cur && cur.updatedAt >= +c.updatedAt) continue;
+      await dbPut({id:c.id,name:c.name,cat:c.cat,date:c.date,memo:c.memo,lat:+c.lat,lng:+c.lng,
+        photoId:c.photoId||null, thumb:await d2b(c.thumb), mapUrl:c.mapUrl||'',
+        photo:(cur && cur.photoId===c.photoId)?cur.photo:null,
+        deleted:!!c.deleted, updatedAt:+c.updatedAt, dirty:false});
+      n++;
+    }
+    if(n){ await load(); msg(`${n}件を読み込みました`); }
+  }catch(e){ msg('同期できませんでした: '+e.message); }
+}
+// 高画質の写真を必要になった時だけ取得
+async function fetchPhoto(p){
+  if(p.photo || !p.photoId || !GAS_URL) return null;
+  try{
+    const r = await api('photo_get',{fileId:p.photoId});
+    p.photo = await d2b(r.data);
+    const rec = (await dbAll()).find(x=>x.id===p.id);
+    if(rec){ rec.photo = p.photo; await dbPut(rec); }
+    return p.photo;
+  }catch(_){ return null; }
+}
+
+/* ============ 都道府県の判定（Nominatim逆ジオコーディング／結果はローカル保存） ============ */
+const ckey = (la,ln)=>'pf:'+la.toFixed(3)+','+ln.toFixed(3);
+const prefCache = (la,ln)=> localStorage.getItem(ckey(la,ln))||'';
+let queue=[], running=false;
+function resolvePrefs(){
+  queue = items.filter(p=>!p.pref);
+  if(!running) runQueue();
+}
+async function runQueue(){
+  running = true;
+  while(queue.length){
+    const p = queue.shift();
+    if(p.pref) continue;
+    try{
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&accept-language=ja&lat=${p.lat}&lon=${p.lng}`);
+      const j = await r.json();
+      const a = j.address||{};
+      let pref = a.province || a.state || a.region || '';
+      if(a.country_code && a.country_code!=='jp') pref = a.country || '海外';
+      pref = PREFS.find(x=>pref && (x===pref || pref.indexOf(x.replace(/[都道府県]$/,''))===0)) || pref || '場所未判定';
+      p.pref = pref;
+      localStorage.setItem(ckey(p.lat,p.lng), pref);
+      if(mode==='pref'){ buildPages(); show(); }
+    }catch(_){ }
+    await new Promise(r=>setTimeout(r,1200));   // 利用規約に配慮して1秒以上あける
+  }
+  running = false;
+}
+
+/* ============ ページ構成 ============ */
+function layout(){
+  spread = window.innerWidth >= 820;
+  const st = $('stage'), bk = $('book');
+  const availW = st.clientWidth - 20, availH = st.clientHeight - 12;
+  // 1ページのアスペクト比は 3:4
+  let ph = availH - 20, pw = ph*0.75;
+  if(spread){
+    if(pw*2 + 20 > availW){ pw = (availW-20)/2; ph = pw/0.75; }
+  }else{
+    if(pw + 20 > availW){ pw = availW-20; ph = pw/0.75; }
+  }
+  pw = Math.floor(pw); ph = Math.floor(ph);
+  $('sideL').style.cssText = `width:${pw}px;height:${ph}px;display:${spread?'block':'none'}`;
+  $('sideR').style.cssText = `width:${pw}px;height:${ph}px`;
+  const f = $('flip');
+  f.style.width = pw+'px'; f.style.height = ph+'px';
+  f.style.left = (spread ? pw+10 : 10)+'px';
+  f.style.transformOrigin = 'left center';
+  bk.style.perspective = (pw*4)+'px';
+  document.documentElement.style.setProperty('--pw', pw+'px');
+}
+function monthLabel(d){ return d ? d.slice(0,4)+'年'+(+d.slice(5,7))+'月' : '日付なし'; }
+function groups(){
+  const map = new Map();
+  if(mode==='month'){
+    items.slice().sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')).forEach(p=>{
+      const k = monthLabel(p.date);
+      if(!map.has(k)) map.set(k,[]); map.get(k).push(p);
+    });
+  }else{
+    const order = p => { const i = PREFS.indexOf(p.pref); return i<0 ? 999 : i; };
+    items.slice().sort((a,b)=> order(a)-order(b) || String(a.pref).localeCompare(b.pref) || (a.date||'').localeCompare(b.date||'')).forEach(p=>{
+      const k = p.pref || '判定中…';
+      if(!map.has(k)) map.set(k,[]); map.get(k).push(p);
+    });
+  }
+  return [...map.entries()].map(([title,list])=>({title,list}));
+}
+let toc=[];
+function buildPages(){
+  const gs = groups();
+  pages = []; toc = [];
+  if(spread) pages.push({t:'blank'});
+  pages.push({t:'cover'});
+  gs.forEach(g=>{
+    toc.push({title:g.title, count:g.list.length, page:pages.length});
+    pages.push({t:'div', title:g.title, count:g.list.length});
+    g.list.forEach(p=>pages.push({t:'photo', p, group:g.title}));
+  });
+  pages.push({t:'end'});
+  if(spread && pages.length%2) pages.push({t:'blank'});
+  const step = spread?2:1;
+  idx = Math.min(idx - (idx % step), Math.max(0,pages.length-step));
+  renderToc();
+}
+function renderToc(){
+  const b = $('tocBody'); b.innerHTML='';
+  if(!toc.length){ b.innerHTML='<p style="color:#8a7f70;font-size:13px">記録がありません</p>'; return; }
+  toc.forEach(t=>{
+    const el=document.createElement('button'); el.className='toc';
+    el.innerHTML = `<span style="color:#2f2a24">${esc(t.title)}</span><span>${t.count}か所</span>`;
+    el.onclick = ()=>{ const step=spread?2:1; idx = t.page - (t.page%step); show(); closeToc(); };
+    b.appendChild(el);
+  });
+}
+const esc = s => String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+/* ============ 描画 ============ */
+function urlOf(p){
+  if(urlCache[p.id]) return urlCache[p.id];
+  const b = p.photo || p.thumb;
+  if(!b) return null;
+  return (urlCache[p.id] = URL.createObjectURL(b));
+}
+function html(pg, no){
+  if(!pg) return `<div class="pg blank"></div>`;
+  if(pg.t==='blank') return `<div class="pg blank"></div>`;
+  if(pg.t==='cover') return `<div class="pg cover">
+      <div class="big">いった記録</div><div class="line"></div>
+      <div class="sm">${items.length} か所のアルバム</div>
+      <div class="sm" style="margin-top:6px">${mode==='month'?'月ごとに綴じる':'都道府県ごとに綴じる'}</div></div>`;
+  if(pg.t==='div') return `<div class="pg div"><div class="t">${esc(pg.title)}</div>
+      <div class="rule"></div><div class="s">${pg.count} か所</div></div>`;
+  if(pg.t==='end') return `<div class="pg end">おわり</div>`;
+  const p = pg.p, u = urlOf(p);
+  const meta = [p.date?p.date.replace(/-/g,'/'):'', mode==='month'?(p.pref||''):monthLabel(p.date)].filter(Boolean).join(' ・ ');
+  return `<div class="pg">
+    <div class="frame">${u?`<img src="${u}" alt="" data-id="${p.id}">`:'<div class="none">🖼</div>'}</div>
+    <div class="cap"><div class="nm">${esc(p.name)}</div><div class="mt">${esc(meta)}</div>
+      ${p.memo?`<div class="memo">${esc(p.memo)}</div>`:''}</div>
+    <div class="pgno">${no}</div></div>`;
+}
+function show(){
+  const step = spread?2:1;
+  if(spread){
+    $('sideL').innerHTML = html(pages[idx], idx);
+    $('sideR').innerHTML = html(pages[idx+1], idx+1);
+  }else{
+    $('sideR').innerHTML = html(pages[idx], idx);
+  }
+  $('prev').disabled = idx<=0;
+  $('next').disabled = idx+step >= pages.length;
+  const cur = pages[idx+ (spread?1:0)] || pages[idx];
+  const g = cur && cur.group ? cur.group : (cur && cur.title ? cur.title : '');
+  $('pos').textContent = items.length ? `${Math.min(idx+step,pages.length)} / ${pages.length} ページ${g?'　'+g:''}` : '記録がありません';
+  upgradePhotos();
+}
+// 表示中のページの写真を高画質へ差し替え
+async function upgradePhotos(){
+  const step = spread?2:1;
+  for(let i=idx;i<idx+step;i++){
+    const pg = pages[i];
+    if(!pg || pg.t!=='photo' || pg.p.photo || !pg.p.photoId) continue;
+    const b = await fetchPhoto(pg.p);
+    if(b){ delete urlCache[pg.p.id]; if(i>=idx && i<idx+step) show(); }
+  }
+}
+
+/* ============ ページめくり ============ */
+function turn(dir){
+  const step = spread?2:1;
+  if(busy) return;
+  if(dir>0 && idx+step>=pages.length) return;
+  if(dir<0 && idx<=0) return;
+  busy = true;
+  const f=$('flip'), ff=$('flipF'), fb=$('flipB');
+  f.style.transition='none';
+  if(dir>0){
+    // めくる紙：表＝いまの右ページ、裏＝次の左ページ
+    ff.innerHTML = html(pages[idx+(spread?1:0)], idx+(spread?1:0));
+    fb.innerHTML = html(pages[idx+step], idx+step);
+    if(spread){ $('sideR').innerHTML = html(pages[idx+step+1], idx+step+1); }
+    f.style.transform='rotateY(0deg)'; f.style.visibility='visible';
+    requestAnimationFrame(()=>{ f.style.transition=''; f.style.transform='rotateY(-180deg)'; });
+  }else{
+    ff.innerHTML = html(pages[idx-step+(spread?1:0)], idx-step+(spread?1:0));
+    fb.innerHTML = html(pages[idx], idx);
+    if(spread){ $('sideL').innerHTML = html(pages[idx-step], idx-step); }
+    f.style.transform='rotateY(-180deg)'; f.style.visibility='visible';
+    requestAnimationFrame(()=>{ f.style.transition=''; f.style.transform='rotateY(0deg)'; });
+  }
+  setTimeout(()=>{
+    idx += dir>0 ? step : -step;
+    f.style.visibility='hidden'; f.style.transition='none'; f.style.transform='rotateY(0deg)';
+    show(); busy=false;
+  }, 740);
+}
+$('next').onclick = ()=>turn(1);
+$('prev').onclick = ()=>turn(-1);
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight') turn(1);
+  if(e.key==='ArrowLeft') turn(-1);
+  if(e.key==='Escape') closeToc();
+});
+// ページの左右タップ＆スワイプ
+let sx=null;
+$('stage').addEventListener('pointerdown', e=>{ sx=e.clientX; });
+$('stage').addEventListener('pointerup', e=>{
+  if(sx===null) return;
+  const dx = e.clientX - sx; sx=null;
+  if(Math.abs(dx)>45){ turn(dx<0?1:-1); return; }
+  const r = $('book').getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) return;
+  turn(e.clientX < r.left + r.width/2 ? -1 : 1);
+});
+
+/* ============ 並べ替え・目次 ============ */
+function setMode(m){
+  mode = m;
+  $('byMonth').classList.toggle('on', m==='month');
+  $('byPref').classList.toggle('on', m==='pref');
+  idx = 0; buildPages(); show();
+  if(m==='pref'){
+    const un = items.filter(p=>!p.pref).length;
+    if(un) msg(`${un}件の都道府県を判定中です（1件ずつ取得しています）`);
+    resolvePrefs();
+  }
+}
+$('byMonth').onclick = ()=>setMode('month');
+$('byPref').onclick  = ()=>setMode('pref');
+$('btnToc').onclick = ()=>{ $('mask').classList.add('show'); $('toc').classList.add('show'); };
+function closeToc(){ $('mask').classList.remove('show'); $('toc').classList.remove('show'); }
+$('mask').onclick = closeToc;
+$('btnBack').onclick = ()=>{ location.href='index.html'; };
+</script>
+</body>
+</html>
