@@ -186,7 +186,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbx-j4R2WvIbrPzmpcMo2XtK
 const SYNC_KEY = '109344';
 // 記録アプリ（index.html）の場所。別リポジトリに置く場合は完全なURLを書く
 // 例: 'https://ユーザー名.github.io/place-memo/'
-const MAIN_APP_URL = 'index.html';
+const MAIN_APP_URL = 'https://whited0610.github.io/GoneMap/';
 // 1ページに貼る写真の最大枚数（これを超えると次のページへ）
 const PER_PAGE = 40;
 // ================================================================
@@ -211,6 +211,7 @@ const openDB = () => new Promise((res,rej)=>{
 const st = m => db.transaction('places',m).objectStore('places');
 const dbAll = () => new Promise(r=>{ const q=st('readonly').getAll(); q.onsuccess=()=>r(q.result||[]); q.onerror=()=>r([]); });
 const dbPut = o => new Promise(r=>{ const q=st('readwrite').put(o); q.onsuccess=()=>r(); q.onerror=()=>r(); });
+const dbDel = id => new Promise(r=>{ const q=st('readwrite').delete(id); q.onsuccess=()=>r(); q.onerror=()=>r(); });
 
 /* ============ 状態 ============ */
 let items=[], pages=[], idx=0, mode='month', spread=false, busy=false, urlCache={};
@@ -254,6 +255,7 @@ async function pull(){
     const local = await dbAll(); let n=0;
     for(const c of (res.changes||[])){
       const cur = local.find(x=>x.id===c.id);
+      if(c.deleted){ if(cur){ await dbDel(c.id); delete urlCache[c.id]; n++; } continue; }
       if(cur && cur.updatedAt >= +c.updatedAt) continue;
       await dbPut({id:c.id,name:c.name,cat:c.cat,date:c.date,memo:c.memo,lat:+c.lat,lng:+c.lng,
         photoId:c.photoId||null, thumb:await d2b(c.thumb), mapUrl:c.mapUrl||'',
