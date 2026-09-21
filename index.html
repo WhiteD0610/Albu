@@ -89,8 +89,8 @@ header .ttl{font-size:15px;font-weight:600;letter-spacing:.04em;flex:1;white-spa
   transition:transform .14s, box-shadow .14s}
 .snap:hover{transform:rotate(0deg) scale(1.12)!important;box-shadow:0 6px 16px rgba(0,0,0,.42);z-index:5}
 .snap img{width:100%;height:100%;object-fit:cover;display:block}
-.snap .no{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-  background:#eee9df;color:#c6bba6;font-size:clamp(8px,1.8vmin,16px)}
+.snap .no{width:100%;height:100%;background:
+  repeating-linear-gradient(45deg,#ece6da 0 6px,#e3dccd 6px 12px)}
 .snap::before{content:'';position:absolute;top:-4px;left:50%;width:38%;height:8px;
   background:rgba(250,232,175,.72);box-shadow:0 1px 2px rgba(0,0,0,.12);
   transform:translateX(-50%) rotate(-3deg);z-index:2}
@@ -181,7 +181,7 @@ footer{flex:0 0 auto;padding:6px 12px calc(var(--safe-b) + 12px);display:flex;ga
 
 <script>
 // ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxd8Yh-H20xPp2Y_cTdQ4XCOZAbEOvWGZqSTgjCwYOMb1VSLIgcCrh5Kj0koQ1Ac0XcGw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx-j4R2WvIbrPzmpcMo2XtKJHKNEq5qOvsLpQvW17VhfZUHARSF9kf6Ttq_ew80tsr2cQ/exec';
 // 記録アプリと同じ合言葉
 const SYNC_KEY = '109344';
 // 記録アプリ（index.html）の場所。別リポジトリに置く場合は完全なURLを書く
@@ -238,6 +238,7 @@ async function load(){
   buildPages(); show();
   if(!items.length) msg('記録がまだありません。記録アプリで場所を登録してください');
   resolvePrefs();
+  fillMissingThumbs();
 }
 
 /* ============ GASから読み取り（追加のみ、書き込みなし） ============ */
@@ -273,6 +274,35 @@ async function fetchPhoto(p){
     if(rec){ rec.photo = p.photo; await dbPut(rec); }
     return p.photo;
   }catch(_){ return null; }
+}
+
+/* ============ サムネが無い記録をDriveから補完 ============ */
+async function resizeBlob(blob,max,q){
+  const bmp = await createImageBitmap(blob);
+  const s = Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const w=Math.round(bmp.width*s), h=Math.round(bmp.height*s);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  cv.getContext('2d').drawImage(bmp,0,0,w,h); bmp.close&&bmp.close();
+  return await new Promise(r=>cv.toBlob(r,'image/jpeg',q));
+}
+let filling=false;
+async function fillMissingThumbs(){
+  if(!GAS_URL || filling) return;
+  filling = true;
+  try{
+    const targets = items.filter(p=>!p.thumb && !p.photo && p.photoId).slice(0,8);
+    for(const p of targets){
+      try{
+        const r = await api('photo_get',{fileId:p.photoId});
+        const blob = await d2b(r.data); if(!blob) continue;
+        p.photo = blob; p.thumb = await resizeBlob(blob,180,.72);
+        const rec = (await dbAll()).find(x=>x.id===p.id);
+        if(rec){ rec.photo=p.photo; rec.thumb=p.thumb; await dbPut(rec); }
+        delete urlCache[p.id];
+      }catch(_){ }
+    }
+    if(targets.length){ pageCache.clear(); show(); }
+  }finally{ filling=false; }
 }
 
 /* ============ 都道府県の判定（Nominatim逆ジオコーディング／結果はローカル保存） ============ */
@@ -409,7 +439,7 @@ function html(pg, no){
     const u = urlOf(p), h = seed(p.id);
     const tape = (h%5===0) ? 'noTape' : ((h%2) ? 'tapeR' : '');
     return `<div class="snap ${tape}" style="${snapStyle(p.id)}" data-id="${p.id}">`
-      + (u?`<img src="${u}" alt="" decoding="async">`:'<div class="no">🖼</div>') + `</div>`;
+      + (u?`<img src="${u}" alt="" decoding="async">`:'<div class="no"></div>') + `</div>`;
   }).join('');
   return `<div class="pg grid">
     <div class="ttl2">${esc(pg.title)}<span>${pg.total}か所${pg.parts>1?`（${pg.part}/${pg.parts}）`:''}</span></div>
