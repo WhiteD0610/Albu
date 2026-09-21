@@ -42,7 +42,7 @@ header .ttl{font-size:15px;font-weight:600;letter-spacing:.04em;flex:1;white-spa
 .side{position:relative;overflow:hidden;background:var(--paper);border-radius:3px}
 .side.left{border-radius:3px 0 0 3px;box-shadow:inset -14px 0 22px -14px rgba(0,0,0,.45)}
 .side.right{border-radius:0 3px 3px 0;box-shadow:inset 14px 0 22px -14px rgba(0,0,0,.45)}
-#flip{position:absolute;top:10px;transform-style:preserve-3d;transition:transform .72s cubic-bezier(.4,.05,.25,1);
+#flip{position:absolute;top:10px;transform-style:preserve-3d;transition:transform .62s cubic-bezier(.4,.05,.25,1);will-change:transform;backface-visibility:hidden;
   z-index:20;pointer-events:none;visibility:hidden}
 #flip .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
   background:var(--paper);overflow:hidden;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -79,24 +79,21 @@ header .ttl{font-size:15px;font-weight:600;letter-spacing:.04em;flex:1;white-spa
 .pg.end{align-items:center;justify-content:center;color:var(--sub);font-size:15px}
 
 /* ===== コラージュ（貼り付けページ） ===== */
-.pg.grid{padding:14px 12px 22px}
-.ttl2{flex:0 0 auto;text-align:center;font-size:clamp(13px,2.4vmin,20px);letter-spacing:.08em;
-  padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid #ddd0b4}
+.pg.grid{padding:12px 10px 20px}
+.ttl2{flex:0 0 auto;text-align:center;font-size:clamp(12px,2.2vmin,19px);letter-spacing:.08em;
+  padding-bottom:5px;margin-bottom:6px;border-bottom:1px solid #ddd0b4}
 .ttl2 span{font-size:.62em;color:var(--sub);margin-left:8px;font-family:-apple-system,sans-serif}
-.collage{flex:1;min-height:0;display:grid;gap:clamp(3px,.9vmin,9px);align-content:start;padding:4px 2px}
-.snap{position:relative;background:#fff;padding:3px;aspect-ratio:1;display:flex;flex-direction:column;
-  box-shadow:0 2px 7px rgba(0,0,0,.28);border:1px solid #f0ece2;cursor:pointer;
-  transition:transform .15s, box-shadow .15s}
-.snap:hover{transform:rotate(0deg) scale(1.06)!important;box-shadow:0 6px 16px rgba(0,0,0,.4);z-index:5}
-.snap .im{flex:1;min-height:0;overflow:hidden;background:#eee9df;display:flex;align-items:center;justify-content:center}
-.snap .im img{width:100%;height:100%;object-fit:cover;display:block}
-.snap .im .no{font-size:clamp(9px,2vmin,18px);color:#c6bba6}
-.snap .cp{flex:0 0 auto;font-size:clamp(5px,1.25vmin,10px);line-height:1.25;text-align:center;
-  padding:2px 1px 0;color:#5b5247;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-  font-family:"Hiragino Maru Gothic ProN","Yu Gothic",-apple-system,sans-serif}
-.snap::before{content:'';position:absolute;top:-5px;left:50%;width:36%;height:10px;
+.collage{flex:1;min-height:0;display:grid;gap:clamp(2px,.8vmin,8px);padding:3px 2px;contain:layout paint}
+.snap{position:relative;background:#fff;padding:clamp(1px,.4vmin,4px);min-width:0;min-height:0;overflow:hidden;
+  box-shadow:0 1px 5px rgba(0,0,0,.28);border:1px solid #f0ece2;cursor:pointer;
+  transition:transform .14s, box-shadow .14s}
+.snap:hover{transform:rotate(0deg) scale(1.12)!important;box-shadow:0 6px 16px rgba(0,0,0,.42);z-index:5}
+.snap img{width:100%;height:100%;object-fit:cover;display:block}
+.snap .no{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:#eee9df;color:#c6bba6;font-size:clamp(8px,1.8vmin,16px)}
+.snap::before{content:'';position:absolute;top:-4px;left:50%;width:38%;height:8px;
   background:rgba(250,232,175,.72);box-shadow:0 1px 2px rgba(0,0,0,.12);
-  transform:translateX(-50%) rotate(-3deg)}
+  transform:translateX(-50%) rotate(-3deg);z-index:2}
 .snap.tapeR::before{transform:translateX(-50%) rotate(4deg);background:rgba(215,230,240,.7)}
 .snap.noTape::before{display:none}
 
@@ -217,6 +214,7 @@ const dbPut = o => new Promise(r=>{ const q=st('readwrite').put(o); q.onsuccess=
 
 /* ============ 状態 ============ */
 let items=[], pages=[], idx=0, mode='month', spread=false, busy=false, urlCache={};
+const pageCache = new Map();   // ページ番号 → 生成済みDOM
 const $ = id => document.getElementById(id);
 const msg = t => { const e=$('msg'); e.textContent=t; e.classList.add('show');
   clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove('show'),2400); };
@@ -319,6 +317,7 @@ function layout(){
     if(pw + 20 > availW){ pw = availW-20; ph = pw/0.75; }
   }
   pw = Math.floor(pw); ph = Math.floor(ph);
+  pageCache.clear();
   $('sideL').style.cssText = `width:${pw}px;height:${ph}px;display:${spread?'block':'none'}`;
   $('sideR').style.cssText = `width:${pw}px;height:${ph}px`;
   const f = $('flip');
@@ -348,6 +347,7 @@ function groups(){
 let toc=[];
 function buildPages(){
   const gs = groups();
+  pageCache.clear();
   pages = []; toc = [];
   if(spread) pages.push({t:'blank'});
   pages.push({t:'cover'});
@@ -401,31 +401,38 @@ function html(pg, no){
       <div class="sm">${items.length} か所のアルバム</div>
       <div class="sm" style="margin-top:6px">${mode==='month'?'月ごとに綴じる':'都道府県ごとに綴じる'}</div></div>`;
   if(pg.t==='end') return `<div class="pg end">おわり</div>`;
-  // コラージュページ
+  // コラージュページ：列数・行数を決めて必ずページ内に収める
   const n = pg.list.length;
-  const cols = Math.max(2, Math.min(8, Math.round(Math.sqrt(n*0.78)) || 2));
-  const cells = pg.list.map((p,i)=>{
+  const cols = Math.max(2, Math.ceil(Math.sqrt(n*0.78)));
+  const rows = Math.max(1, Math.ceil(n/cols));
+  const cells = pg.list.map(p=>{
     const u = urlOf(p), h = seed(p.id);
     const tape = (h%5===0) ? 'noTape' : ((h%2) ? 'tapeR' : '');
-    const sub = mode==='month' ? (p.pref||'') : (p.date? p.date.slice(0,7).replace('-','/') : '');
-    return `<div class="snap ${tape}" style="${snapStyle(p.id)}" data-id="${p.id}">
-        <div class="im">${u?`<img src="${u}" alt="" loading="lazy">`:'<div class="no">🖼</div>'}</div>
-        <div class="cp">${esc(p.name)}${sub?' '+esc(sub):''}</div>
-      </div>`;
+    return `<div class="snap ${tape}" style="${snapStyle(p.id)}" data-id="${p.id}">`
+      + (u?`<img src="${u}" alt="" decoding="async">`:'<div class="no">🖼</div>') + `</div>`;
   }).join('');
   return `<div class="pg grid">
     <div class="ttl2">${esc(pg.title)}<span>${pg.total}か所${pg.parts>1?`（${pg.part}/${pg.parts}）`:''}</span></div>
-    <div class="collage" style="grid-template-columns:repeat(${cols},1fr)">${cells}</div>
+    <div class="collage" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${cells}</div>
     <div class="pgno">${no}</div></div>`;
 }
+
+/* ページDOMをキャッシュして、めくるたびに作り直さない */
+function pageNode(i){
+  let n = pageCache.get(i);
+  if(!n){
+    const d = document.createElement('div');
+    d.innerHTML = html(pages[i], i);
+    n = d.firstElementChild;
+    pageCache.set(i, n);
+  }
+  return n;
+}
+function put(el, i){ el.replaceChildren(pageNode(i).cloneNode(true)); }
 function show(){
   const step = spread?2:1;
-  if(spread){
-    $('sideL').innerHTML = html(pages[idx], idx);
-    $('sideR').innerHTML = html(pages[idx+1], idx+1);
-  }else{
-    $('sideR').innerHTML = html(pages[idx], idx);
-  }
+  if(spread){ put($('sideL'), idx); put($('sideR'), idx+1); }
+  else { put($('sideR'), idx); }
   $('prev').disabled = idx<=0;
   $('next').disabled = idx+step >= pages.length;
   const cur = pages[idx+(spread?1:0)] || pages[idx] || {};
@@ -434,6 +441,7 @@ function show(){
 }
 
 /* ============ ページめくり ============ */
+const FLIP_MS = 620;
 function turn(dir){
   const step = spread?2:1;
   if(busy) return;
@@ -444,23 +452,30 @@ function turn(dir){
   f.style.transition='none';
   if(dir>0){
     // めくる紙：表＝いまの右ページ、裏＝次の左ページ
-    ff.innerHTML = html(pages[idx+(spread?1:0)], idx+(spread?1:0));
-    fb.innerHTML = html(pages[idx+step], idx+step);
-    if(spread){ $('sideR').innerHTML = html(pages[idx+step+1], idx+step+1); }
+    put(ff, idx+(spread?1:0));
+    put(fb, idx+step);
+    if(spread) put($('sideR'), idx+step+1);
     f.style.transform='rotateY(0deg)'; f.style.visibility='visible';
-    requestAnimationFrame(()=>{ f.style.transition=''; f.style.transform='rotateY(-180deg)'; });
+    void f.offsetWidth;
+    f.style.transition=''; f.style.transform='rotateY(-180deg)';
   }else{
-    ff.innerHTML = html(pages[idx-step+(spread?1:0)], idx-step+(spread?1:0));
-    fb.innerHTML = html(pages[idx], idx);
-    if(spread){ $('sideL').innerHTML = html(pages[idx-step], idx-step); }
+    put(ff, idx-step+(spread?1:0));
+    put(fb, idx);
+    if(spread) put($('sideL'), idx-step);
     f.style.transform='rotateY(-180deg)'; f.style.visibility='visible';
-    requestAnimationFrame(()=>{ f.style.transition=''; f.style.transform='rotateY(0deg)'; });
+    void f.offsetWidth;
+    f.style.transition=''; f.style.transform='rotateY(0deg)';
   }
   setTimeout(()=>{
     idx += dir>0 ? step : -step;
-    f.style.visibility='hidden'; f.style.transition='none'; f.style.transform='rotateY(0deg)';
-    show(); busy=false;
-  }, 740);
+    show();                      // 先に本体を新ページへ差し替えてから
+    f.style.transition='none';   // めくり紙を瞬時に隠す（残像防止）
+    f.style.visibility='hidden';
+    f.style.transform='rotateY(0deg)';
+    void f.offsetWidth;
+    ff.replaceChildren(); fb.replaceChildren();
+    busy=false;
+  }, FLIP_MS+30);
 }
 $('next').onclick = ()=>turn(1);
 $('prev').onclick = ()=>turn(-1);
@@ -497,7 +512,7 @@ async function openPhoto(id){
   $('pvMemo').textContent = p.memo||'';
   $('pv').classList.add('show');
   const b = await fetchPhoto(p);              // 高画質版は開いた時だけ取得
-  if(b && pvItem===p){ delete urlCache[p.id]; img.src = urlOf(p); }
+  if(b && pvItem===p){ img.src = URL.createObjectURL(b); }
 }
 $('pvClose').onclick = ()=>{ $('pv').classList.remove('show'); pvItem=null; };
 $('pv').addEventListener('click', e=>{ if(e.target.id==='pv') $('pvClose').onclick(); });
